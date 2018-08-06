@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block header %}
+  <h1>{% block title %}Tables{% endblock %}</h1>
+{% endblock %}
+
+{% block content %}
+  {% for table in tables %}
+    <article class="post">
+      <header>
+        <div>
+          <h1>{{ table['object'] }}</h1>
+          <div class="about">by {{ table['username'] }} on {{ table['created'].strftime('%Y-%m-%d') }}</div>
+        </div>
+        {% if g.user['id'] == table['author_id'] %}
+          <a class="action" href="{{ url_for('table.update', id=table['id']) }}">Edit</a>
+        {% endif %}
+      </header>
+      <p class="body">{{ table['description'] }}</p>
+    </article>
+    {% if not loop.last %}
+      <hr>
+    {% endif %}
+  {% endfor %}
+
+<body>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js"></script>
+
+<style type="text/css">
+    #mynetwork {
+      width: 600px;
+      height: 400px;
+      border: 1px solid lightgray;
+    }
+  </style>
+<p>
+  Create a simple network with some nodes and edges.
+</p>
+
+<div id="mynetwork"></div>
+
+<script type="text/javascript">
+  // create an array with nodes
+  var nodes = new vis.DataSet([
+
+  {% for table in tables %}
+    {id: {{table.id}}, label: '{{ table.object }}' },
+  {% endfor %}
+
+  ]);
+
+  // create an array with edges
+  var edges = new vis.DataSet([
+  ]);
+
+  // create a network
+  var container = document.getElementById('mynetwork');
+  var data = {
+    nodes: nodes,
+    edges: edges
+  };
+  var options = {};
+  var network = new vis.Network(container, data, options);
+</script>
+
+
+</body>
+
+{% endblock %}

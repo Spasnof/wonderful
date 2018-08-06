@@ -50,6 +50,7 @@
 
   // create an array with edges
   var edges = new vis.DataSet([
+  <!--TODO add some edges-->
   ]);
 
   // create a network
@@ -58,8 +59,26 @@
     nodes: nodes,
     edges: edges
   };
-  var options = {};
+  var options = {
+    interaction:{keyboard: {enabled: true }, navigationButtons: true, hover:true }
+    ,manipulation: {enabled: true, addNode: true}
+  };
   var network = new vis.Network(container, data, options);
+
+network.on('oncontext',function(params){
+    if((params.nodes.length == 0) && (params.edges.length == 0)) {
+        var plabel = prompt("Enter name of new node","");
+        var updatedIds = nodes.add([{
+            label:plabel,
+            x:params.pointer.canvas.x,
+            y:params.pointer.canvas.y
+        }]);
+        network.selectNodes([updatedIds[0]]);
+        network.editNode();
+    }
+    params.preventDefault();
+})
+
 </script>
 
 

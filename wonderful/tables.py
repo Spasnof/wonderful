@@ -18,3 +18,6 @@ def index():
     ).fetchall()
     return render_template('tables/index.html', tables=meta_tables)
 
+# TODO have javascript pass back to db backend a frontend added db
+# TODO add edge support for DB
+

@@ -72,7 +72,7 @@
       <span id="operation">node</span> <br>
       <table style="margin:auto;">
         <tr>
-          <input type="hidden" id="node-id" value="new value" />
+          <input type="hidden" id="node-id" value="new value" >
         </tr>
         <tr>
           <td>label</td><td><input id="node-label" value="new value" /></td>
@@ -138,13 +138,13 @@
     /* create an array with nodes from backend */
     nodes = new vis.DataSet([
       {% for table in tables %}
-        {id: {{table.id}}, label: '{{ table.object }}', title: '{{table.description|tojson}}' },
+        {id: {{table.id}}, label: '{{ table.object|tojson }}', title: '{{table.description|tojson}}' },
       {% endfor %}
       ]);
     /* create an array with edges from backend */
     edges = new vis.DataSet([
       {% for edge in edges %}
-        {from: {{edge.from_table_id}}, to: '{{ edge.to_table_id}}', title: '{{ edge.description}}', arrows:'to' },
+        {from: {{edge.from_table_id|tojson}}, to: '{{ edge.to_table_id|tojson}}', title: '{{ edge.description|tojson}}', arrows:'to' },
       {% endfor %}
       ]);
 
@@ -157,12 +157,12 @@
   var options = {
     physics:{
       enabled: false
-    },
+      },
     edges:{
       arrows: {
         to: {enabled: true}
       }
-    },
+      },
     layout: {
       randomSeed: 2,
       // hierarchical: {
@@ -171,14 +171,14 @@
       //   sortMethod: 'directed',
       //   nodeSpacing: 50
       // }
-    },
+      },
     interaction:{
       keyboard: {
         //keyboard interrupts with text editing so just disabling.
         enabled: false },
       navigationButtons: false,
       hover:true 
-    },
+      },
     manipulation: {
       addNode: function (data, callback) {
         // filling in the popup DOM elements
@@ -189,7 +189,7 @@
         document.getElementById('saveButton').onclick = saveData.bind(this, data, callback);
         document.getElementById('cancelButton').onclick = clearPopUp.bind();
         document.getElementById('network-popUp').style.display = 'block';
-      },
+        },
       editNode: function (data, callback) {
         // filling in the popup DOM elements
         //TODO bug exists where the data isn't saved
@@ -200,20 +200,20 @@
         document.getElementById('saveButton').onclick = saveData.bind(this, data, callback);
         document.getElementById('cancelButton').onclick = cancelEdit.bind(this,callback);
         document.getElementById('network-popUp').style.display = 'block';
-      },
+        },
       addEdge: function (data, callback) {
         if (data.from == data.to) {
           var r = confirm("Do you want to connect the node to itself?");
           if (r == true) {
             callback(data);
-          }
-        }
+            }
+          } 
         else {
           callback(data);
+          }
         }
       }
-    }
-  };
+    };
   network = new vis.Network(container, data, options);
 
   }
@@ -281,59 +281,50 @@
     
     function init() {
       draw();
-
-      
-
       //function that populates the metadata details.
       network.on("click", function (params) {
-      params.event = "[original event]";
-      node = nodes.get(params.nodes)[0];
-      edge = edges._data[params.edges[0]];
-      if (node) {
-        // document.getElementById('details').innerHTML = '' + node.title ;
-        document.getElementById('details_id').innerHTML = params.nodes[0] ;
-        simplemde.value('' + node.title );
-      }
-      else if (edge) {
-        // document.getElementById('details').innerHTML = '' + edge.title ;
-        document.getElementById('details_id').innerHTML = params.edges[0] ;
-        simplemde.value('' + edge.title );
-      }
-       else {
-        // document.getElementById('details').innerHTML = '<p>Select a node for more details</p>'
-        document.getElementById('details_id').innerHTML = ''
-        simplemde.value('Select a node for more details')
-      }
-    });
-
-
-
+        params.event = "[original event]";
+        node = nodes.get(params.nodes)[0];
+        edge = edges._data[params.edges[0]];
+        if (node) {
+            // document.getElementById('details').innerHTML = '' + node.title ;
+            document.getElementById('details_id').innerHTML = params.nodes[0] ;
+            simplemde.value('' + node.title );
+          }
+          else if (edge) {
+            // document.getElementById('details').innerHTML = '' + edge.title ;
+            document.getElementById('details_id').innerHTML = params.edges[0] ;
+            simplemde.value('' + edge.title );
+          }
+          else {
+            // document.getElementById('details').innerHTML = '<p>Select a node for more details</p>'
+            document.getElementById('details_id').innerHTML = '';
+            simplemde.value('Select a node for more details');
+          }
+      });
     }
 
     function update_children(stack_level, next_nodes){
       // if first in stack color and move onto next nodes
       if (stack_level == 1) {
-        selected = network.getSelection().nodes[0];
-        console.log("init on:" + selected);
-        nodes.update({id:selected, color:'#7BE141'});
-        nn = network.getConnectedNodes(selected,"to");
-        update_children(stack_level +1, nn);
-
-      }
-      else {
-        console.log("level:" + stack_level);
-        console.log("iterating through:" + next_nodes);
-        for (n in next_nodes) {
-          selected = next_nodes[n]
-          console.log("next on:" + selected);
+          selected = network.getSelection().nodes[0];
+          console.log("init on:" + selected);
           nodes.update({id:selected, color:'#7BE141'});
           nn = network.getConnectedNodes(selected,"to");
           update_children(stack_level +1, nn);
-
+  
         }
-
-      }
-
+        else {
+          console.log("level:" + stack_level);
+          console.log("iterating through:" + next_nodes);
+          for (n in next_nodes) {
+            selected = next_nodes[n]
+            console.log("next on:" + selected);
+            nodes.update({id:selected, color:'#7BE141'});
+            nn = network.getConnectedNodes(selected,"to");
+            update_children(stack_level +1, nn);
+          }
+        }
     }
 </script>
 

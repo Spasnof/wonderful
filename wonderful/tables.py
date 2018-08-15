@@ -91,3 +91,5 @@ def update_details():
 #TODO have the data dictionary only show services you own
 #TODO have services you don't own displayed on click, only add one layer at a time.
 #TODO have edge/node removal added to the save_nodes() function.
+#TODO add unit tests
+#TODO remove function calls in html button elements.

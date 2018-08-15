@@ -8,21 +8,24 @@ CREATE TABLE user (
   password TEXT NOT NULL
 );
 
+-- TODO change "tables" to "nodes" to be consistent with the front end.
 CREATE TABLE tables (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   owner_id INTEGER NOT NULL,
   created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   object TEXT NOT NULL,
   description TEXT NOT NULL,
+  visible INTEGER NOT NULL,
   FOREIGN KEY (owner_id) REFERENCES user (id)
 );
 
 CREATE TABLE edges (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  from_table_id INTEGER ,
-  to_table_id INTEGER,
+  from_table_id INTEGER , --TODO remove mentions of table
+  to_table_id INTEGER, --TOdO remove mentions of table
   created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   description TEXT NOT NULL,
+  visible INTEGER NOT NULL,
   FOREIGN KEY (from_table_id) REFERENCES tables (id),
   FOREIGN KEY (to_table_id) REFERENCES tables (id)
 );
@@ -31,15 +34,15 @@ CREATE TABLE edges (
 
 INSERT INTO user VALUES(1,'jp','pbkdf2:sha256:50000$jj2lNTIL$31a1a03c4e693f6a66de462ea214c4a273157703004903eca3ce0ec25a9acdc0');
 
-INSERT INTO tables(owner_id, object, description) VALUES (1,'foo.telemetry', 'button click telemetry'); --id = 1
-INSERT INTO tables(owner_id, object, description) VALUES (1,'sys.calendar', 'business calendar'); --id = 2
-INSERT INTO tables(owner_id, object, description) VALUES (1,'bar.invoices', 'invoices'); --id = 3
-INSERT INTO tables(owner_id, object, description) VALUES (1,'bar.invoice_summary', 'invoices summarized'); --id = 4
-INSERT INTO tables(owner_id, object, description) VALUES (1,'kpi.kpi', 'kpis'); --id = 5
+INSERT INTO tables(owner_id, object, description, visible) VALUES (1,'foo.telemetry', 'button click telemetry',1); --id = 1
+INSERT INTO tables(owner_id, object, description, visible) VALUES (1,'sys.calendar', 'business calendar',1); --id = 2
+INSERT INTO tables(owner_id, object, description, visible) VALUES (1,'bar.invoices', 'invoices',1); --id = 3
+INSERT INTO tables(owner_id, object, description, visible) VALUES (1,'bar.invoice_summary', 'invoices summarized',1); --id = 4
+INSERT INTO tables(owner_id, object, description, visible) VALUES (1,'kpi.kpi', 'kpis',1); --id = 5
 
-INSERT INTO edges(from_table_id, to_table_id, description) VALUES (2,1, 'button click telemetry depends on business calendar');
-INSERT INTO edges(from_table_id, to_table_id, description) VALUES (2,3, 'invoices rely on business calendar');
-INSERT INTO edges(from_table_id, to_table_id, description) VALUES (3,4, 'invoice summaries rely on invoices ');
-INSERT INTO edges(from_table_id, to_table_id, description) VALUES (4,5, 'kpis requires invoices');
-INSERT INTO edges(from_table_id, to_table_id, description) VALUES (1,5, 'kpis requires telemetry');
+INSERT INTO edges(visible, from_table_id, to_table_id, description) VALUES (1,2,1, 'button click telemetry depends on business calendar');
+INSERT INTO edges(visible, from_table_id, to_table_id, description) VALUES (1,2,3, 'invoices rely on business calendar');
+INSERT INTO edges(visible, from_table_id, to_table_id, description) VALUES (1,3,4, 'invoice summaries rely on invoices ');
+INSERT INTO edges(visible, from_table_id, to_table_id, description) VALUES (1,4,5, 'kpis requires invoices');
+INSERT INTO edges(visible, from_table_id, to_table_id, description) VALUES (1,1,5, 'kpis requires telemetry');
 

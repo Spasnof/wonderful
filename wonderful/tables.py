@@ -78,19 +78,6 @@ def save_nodes():
     return 'you clicked save'
 
 
-@bp.route('/_update_details', methods=['GET', 'POST'])
-def update_details():
-    db = get_db()
-    node_id = request.args.get('node_id')
-    details = request.args.get('details')
-    object_type = request.args.get('object_type')
-    print(details)
-    if object_type == 'table':
-        db.execute('UPDATE tables SET description = ? WHERE id = ? ', (details, node_id))
-        db.commit()
-    return 'stuff happens'
-
-
 @bp.route('/_add_node', methods=['GET', 'POST'])
 def add_node():
     """ method to add new placeholder nodes to the db, need id only for client to work."""
@@ -98,10 +85,10 @@ def add_node():
     #FIXME resolve to non hard-coded userid from the client to indicate ownership.
     # new nodes are created invisibly then the /_update_node call will address the visiblity.
     new_node = (0, 1, 'new', '')
-    db.execute('INSERT INTO tables(visible, owner_id, object, description, ) VALUES (?,?,?,?);', new_node)
-    max_id = db.execute('SELECT MAX(id) FROM tables;')
+    db.execute('INSERT INTO tables(visible, owner_id, object, description ) VALUES (?,?,?,?) ;', new_node)
+    max_id = db.execute('SELECT MAX(id) as max_id FROM tables;').fetchall()
     db.commit()
-    return max_id
+    return str(max_id[0][0])
 
 @bp.route('/_update_node', methods=['GET', 'POST'])
 def update_node():
@@ -113,6 +100,7 @@ def update_node():
     node_visible = request.args.get('node_visible')
     #TODO add support to change ownership at some point
     node_update = (node_visible, node_label, node_description, node_id)
+    # FIXME the jinja template seems to escape the object or description wierdly adding extra quotes.
     db.execute('UPDATE tables SET visible = ?, object = ?, description = ? WHERE id = ?;', node_update)
     db.commit()
     return 'success'
@@ -128,8 +116,9 @@ def add_edge():
     # new edges are always created visibly unless we see a reason otherwise.
     new_edge = (1, from_id, to_id, edge_description)
     db.execute('INSERT INTO edges(visible, from_table_id, to_table_id, description) VALUES (?,?,?,?);', new_edge)
+    max_id = db.execute('SELECT MAX(id) FROM edges;')
     db.commit()
-    return 'success'
+    return max_id
 
 @bp.route('/_add_edge', methods=['GET', 'POST'])
 def update_edge():

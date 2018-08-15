@@ -64,8 +64,6 @@
     </div>
     <div style="height:400px" id="mynetwork"></div>
     <pre id="eventSpan"></pre>
-    <p>Click <b>save</b> to save nodes to database<p>
-    <button id="send">Save</button>
     <button id="alert" onclick="update_children(1,undefined)"> Alert </button>
     <p id="result"><p>
     <div id="network-popUp">
@@ -76,9 +74,6 @@
         </tr>
         <tr>
           <td>label</td><td><input id="node-label" value="new value" /></td>
-        </tr>
-        <tr>
-          <td>title</td><td><input id="node-title" value="new title" /></td>
         </tr>
       </table>
       <input type="button" value="save" id="saveButton" />
@@ -138,13 +133,13 @@
     /* create an array with nodes from backend */
     nodes = new vis.DataSet([
       {% for table in tables %}
-        {id: {{table.id}}, label: '{{ table.object|tojson }}', title: '{{table.description|tojson}}' },
+        {id: {{table.id}}, label: '{{ table.object | safe }}', title: '{{table.description|tojson}}' },
       {% endfor %}
       ]);
     /* create an array with edges from backend */
     edges = new vis.DataSet([
       {% for edge in edges %}
-        {from: {{edge.from_table_id|tojson}}, to: '{{ edge.to_table_id|tojson}}', title: '{{ edge.description|tojson}}', arrows:'to' },
+        {from: {{edge.from_table_id}}, to: '{{ edge.to_table_id}}', title: '{{ edge.description|tojson}}', arrows:'to' },
       {% endfor %}
       ]);
 
@@ -183,21 +178,18 @@
       addNode: function (data, callback) {
         // filling in the popup DOM elements
         document.getElementById('operation').innerHTML = "Add Node";
-        document.getElementById('node-id').value = data.id;
         document.getElementById('node-label').value = data.label;
-        document.getElementById('node-title').value = data.title;
-        document.getElementById('saveButton').onclick = saveData.bind(this, data, callback);
+        document.getElementById('node-id').value = generate_node_id();
+        document.getElementById('saveButton').onclick = saveDataNew.bind(this, data, callback);
         document.getElementById('cancelButton').onclick = clearPopUp.bind();
         document.getElementById('network-popUp').style.display = 'block';
         },
       editNode: function (data, callback) {
         // filling in the popup DOM elements
-        //TODO bug exists where the data isn't saved
         document.getElementById('operation').innerHTML = "Edit Node";
         document.getElementById('node-id').value = data.id;
         document.getElementById('node-label').value = data.label;
-        document.getElementById('node-title').value = data.title;
-        document.getElementById('saveButton').onclick = saveData.bind(this, data, callback);
+        document.getElementById('saveButton').onclick = saveDataUpdate.bind(this, data, callback);
         document.getElementById('cancelButton').onclick = cancelEdit.bind(this,callback);
         document.getElementById('network-popUp').style.display = 'block';
         },
@@ -218,6 +210,36 @@
 
   }
 
+   function generate_node_id(){
+    var strUrl = $SCRIPT_ROOT + '/_add_node'
+    var strReturn = "";
+ 
+    jQuery.ajax({
+      url: strUrl,
+      success: function(html) {
+        strReturn = html;
+      },
+      async:false
+    });
+
+    return strReturn;
+   }
+
+   function update_node(node_id, node_label, node_description, node_visible){
+    var strUrl = $SCRIPT_ROOT + '/_update_node';
+    if (node_description == undefined)
+    {
+      node_description = ''
+    }
+
+    jQuery.getJSON(strUrl, {
+      node_id: node_id,
+      node_label: node_label,
+      node_description: node_description,
+      node_visible: node_visible
+    });
+   }
+
    function clearPopUp() {
       document.getElementById('saveButton').onclick = null;
       document.getElementById('cancelButton').onclick = null;
@@ -237,11 +259,20 @@
       }
     }
 
-    function saveData(data,callback) {
+    function saveDataNew(data,callback) {
       data.id = document.getElementById('node-id').value;
       data.label = document.getElementById('node-label').value;
-      data.title = document.getElementById('node-title').value;
       clearPopUp();
+      update_node(data.id, data.label, undefined ,'1');
+      callback(data);
+    }
+
+    function saveDataUpdate(data,callback) {
+      data.id = document.getElementById('node-id').value;
+      data.label = document.getElementById('node-label').value;
+      data.description = simplemde.value();
+      clearPopUp();
+      update_node(data.id, data.label, data.description ,'1');
       callback(data);
     }
 
@@ -334,26 +365,14 @@
 
 <script type=text/javascript>
 
-  // jquery command to send request to server to save node state
-  $(function() {
-    $('#send').bind('click', function() {
-      $.getJSON($SCRIPT_ROOT + '/_save_nodes', {
-        nodes: JSON.stringify(nodes.get(), null),
-        edges: JSON.stringify(edges.get(), null)
-      }, function(data) {
-        $("#result").text(data.result);
-      });
-      return false; 
-    });
-  });
-
     // jquery command to send request to server to save node state
   $(function() {
     $('#update_details').bind('click', function() {
-      $.getJSON($SCRIPT_ROOT + '/_update_details', {
+      $.getJSON($SCRIPT_ROOT + '/_update_node', {
         node_id: JSON.stringify(network.getSelection().nodes[0]),
-        details: simplemde.value(),
-        object_type: 'table'
+        node_description: simplemde.value(),
+        node_label: nodes.get(network.getSelection().nodes[0]).label,
+        node_visible: "1"
       }, function(data) {
         $("#result").text(data.result);
       });

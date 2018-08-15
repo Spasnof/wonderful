@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+ {% extends 'base.html' %}
 {% block header %}
 <h1 xmlns="">{% block title %}Tables{% endblock %}</h1>
 {% endblock %}
@@ -7,163 +7,371 @@
 
 
 <body>
-<script type="text/javascript" src="{{ url_for('static', filename='jquery-3.3.1.min.js') }}"> </script>
-
+<script type="text/javascript" src="{{ url_for('static', filename='jquery-3.3.1.min.js') }}"></script>
 <script type="text/javascript" src="{{ url_for('static', filename='vis.js') }}"></script>
+<!-- testing out a simple markdown editor. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.css">
+<script src="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.js"></script>
 
 <style type="text/css">
-    #mynetwork {
-      width: 600px;
-      height: 400px;
-      border: 1px solid lightgray;
+  #mynetwork {
+    width: 600px;
+    height: 400px;
+    border: 1px solid lightgray;
+  }
+
+  #network-popUp {
+    display:none;
+    position:absolute;
+    top:350px;
+    left:170px;
+    z-index:299;
+    width:250px;
+    height:120px;
+    background-color: #f9f9f9;
+    border-style:solid;
+    border-width:3px;
+    border-color: #5394ed;
+    padding:10px;
+    text-align: center;
+  }
+  .columns {
+    display: flex;
+    flex-flow: row wrap;
+    justify-content: center;
+    margin: 5px 0;
+  }
+  .column {
+    flex: 1;
+    border: 1px solid gray;
+    margin: 2px;
+    padding: 10px;
+    &:first-child {
+      margin-left: 0;
     }
-  </style>
-<p>
-  Simple network with edges and nodes. Double click to add node.
-  <input type="hidden" id='direction' value="LR">
-</p>
-
-<div id="mynetwork"></div>
-<pre id="eventSpan"></pre>
+    &:last-child {
+      margin-right: 0;
+    }
+  }
+</style>
 
 
+<section class="columns">
+  <div class="column">
+    <div class="row">
+    <p> Simple network with edges and nodes.
+    </p>
+    </div>
+    <div style="height:400px" id="mynetwork"></div>
+    <pre id="eventSpan"></pre>
+    <p>Click <b>save</b> to save nodes to database<p>
+    <button id="send">Save</button>
+    <button id="alert" onclick="update_children(1,undefined)"> Alert </button>
+    <p id="result"><p>
+    <div id="network-popUp">
+      <span id="operation">node</span> <br>
+      <table style="margin:auto;">
+        <tr>
+          <input type="hidden" id="node-id" value="new value" />
+        </tr>
+        <tr>
+          <td>label</td><td><input id="node-label" value="new value" /></td>
+        </tr>
+        <tr>
+          <td>title</td><td><input id="node-title" value="new title" /></td>
+        </tr>
+      </table>
+      <input type="button" value="save" id="saveButton" />
+      <input type="button" value="cancel" id="cancelButton" />
+    </div>
+  </div>
+  <div class="column">
+    <h2>Metadata details:</h2>
+    <div id="details_id"></div>
+    <textarea id="details">Select a node for more details</textarea>
+    <input type="button" value="update_details" id="update_details" />
+    <script>
+      var simplemde = new SimpleMDE({ element: document.getElementById("details") });
+    </script>
+  </div>
+
+<script>
+  
+  // document.addEventListener('keypress', (n) => {
+  //   const keyName = event.key;
+  //   if (keyName == "n") {
+  //     
+  //   }
+  // });
+
+  // document.addEventListener('keypress', (e) => {
+  // const keyName = event.keyCode;
+  // alert('keypress event\n\n' + 'key: ' + keyName);
+  // if (keyName == "e") {
+  //   network.addEdgeMode();
+  //   }
+  // });
+
+  // document.addEventListener('keypress', (e) => {
+  // const keyName = event.key;
+  // if (keyName == "esc") {
+  //   network.addEdgeMode();
+  //   }
+  // });
+</script>
 <script type="text/javascript">
-  // create an array with nodes
-  var nodes = new vis.DataSet([
-    {% for table in tables %}
-      {id: {{table.id}}, label: '{{ table.object }}' },
-    {% endfor %}
-  ]);
+  var nodes = null;
+  var edges = null;
+  var network = null;
+  var seed = 2;
 
-  // create an array with edges
-  var edges = new vis.DataSet([
-    {% for edge in edges %}
-      {from: {{edge.from_table_id}}, to: '{{ edge.to_table_id}}', arrows:'to'},
-    {% endfor %}
-  ]);
+
+  function destroy() {
+    if (network !== null) {
+      network.destroy();
+      network = null;
+    }
+  }
+
+  function draw() {
+    destroy();
+    /* create an array with nodes from backend */
+    nodes = new vis.DataSet([
+      {% for table in tables %}
+        {id: {{table.id}}, label: '{{ table.object }}', title: '{{table.description|tojson}}' },
+      {% endfor %}
+      ]);
+    /* create an array with edges from backend */
+    edges = new vis.DataSet([
+      {% for edge in edges %}
+        {from: {{edge.from_table_id}}, to: '{{ edge.to_table_id}}', title: '{{ edge.description}}', arrows:'to' },
+      {% endfor %}
+      ]);
 
   // create a network
   var container = document.getElementById('mynetwork');
   var data = {
     nodes: nodes,
     edges: edges
-  };
-  var directionInput = document.getElementById("direction").value;
+    };
   var options = {
-    interaction:{keyboard: {enabled: true }, navigationButtons: true, hover:true }
-    ,manipulation: {enabled: true, addNode: true, initiallyActive: true}
-    ,layout: {
-              hierarchical: {
-              enabled: true,
-              direction: directionInput,
-              sortMethod: 'directed'
-              }
+    physics:{
+      enabled: false
+    },
+    edges:{
+      arrows: {
+        to: {enabled: true}
+      }
+    },
+    layout: {
+      randomSeed: 2,
+      // hierarchical: {
+      //   enabled: true,
+      //   direction: "LR",
+      //   sortMethod: 'directed',
+      //   nodeSpacing: 50
+      // }
+    },
+    interaction:{
+      keyboard: {
+        //keyboard interrupts with text editing so just disabling.
+        enabled: false },
+      navigationButtons: false,
+      hover:true 
+    },
+    manipulation: {
+      addNode: function (data, callback) {
+        // filling in the popup DOM elements
+        document.getElementById('operation').innerHTML = "Add Node";
+        document.getElementById('node-id').value = data.id;
+        document.getElementById('node-label').value = data.label;
+        document.getElementById('node-title').value = data.title;
+        document.getElementById('saveButton').onclick = saveData.bind(this, data, callback);
+        document.getElementById('cancelButton').onclick = clearPopUp.bind();
+        document.getElementById('network-popUp').style.display = 'block';
+      },
+      editNode: function (data, callback) {
+        // filling in the popup DOM elements
+        //TODO bug exists where the data isn't saved
+        document.getElementById('operation').innerHTML = "Edit Node";
+        document.getElementById('node-id').value = data.id;
+        document.getElementById('node-label').value = data.label;
+        document.getElementById('node-title').value = data.title;
+        document.getElementById('saveButton').onclick = saveData.bind(this, data, callback);
+        document.getElementById('cancelButton').onclick = cancelEdit.bind(this,callback);
+        document.getElementById('network-popUp').style.display = 'block';
+      },
+      addEdge: function (data, callback) {
+        if (data.from == data.to) {
+          var r = confirm("Do you want to connect the node to itself?");
+          if (r == true) {
+            callback(data);
+          }
+        }
+        else {
+          callback(data);
+        }
+      }
     }
   };
-  var network = new vis.Network(container, data, options);
+  network = new vis.Network(container, data, options);
 
-network.on('doubleClick',function(params){
-    if((params.nodes.length == 0) && (params.edges.length == 0)) {
-        var plabel = prompt("Enter name of new node","");
-        var updatedIds = nodes.add([{
-            label:plabel,
-            x:params.pointer.canvas.x,
-            y:params.pointer.canvas.y
-        }]);
-        network.selectNodes([updatedIds[0]]);
-        network.editNode();
+  }
+
+   function clearPopUp() {
+      document.getElementById('saveButton').onclick = null;
+      document.getElementById('cancelButton').onclick = null;
+      document.getElementById('network-popUp').style.display = 'none';
     }
-    params.preventDefault();
-})
 
- <!--network.on("click", function (params) {-->
-        <!--params.event = "[original event]";-->
-        <!--document.getElementById('eventSpan').innerHTML = '<h2>Click event:</h2>' + JSON.stringify(params, null, 4);-->
-        <!--console.log('click event, getNodeAt returns: ' + this.getNodeAt(params.pointer.DOM));-->
-    <!--});-->
-    <!--&lt;!&ndash;network.on("doubleClick", function (params) {&ndash;&gt;-->
-        <!--&lt;!&ndash;params.event = "[original event]";&ndash;&gt;-->
-        <!--&lt;!&ndash;document.getElementById('eventSpan').innerHTML = '<h2>doubleClick event:</h2>' + JSON.stringify(params, null, 4);&ndash;&gt;-->
-    <!--&lt;!&ndash;});&ndash;&gt;-->
-    <!--network.on("oncontext", function (params) {-->
-        <!--params.event = "[original event]";-->
-        <!--document.getElementById('eventSpan').innerHTML = '<h2>oncontext (right click) event:</h2>' + JSON.stringify(params, null, 4);-->
-    <!--});-->
-    <!--network.on("dragStart", function (params) {-->
-        <!--// There's no point in displaying this event on screen, it gets immediately overwritten-->
-        <!--params.event = "[original event]";-->
-        <!--console.log('dragStart Event:', params);-->
-        <!--console.log('dragStart event, getNodeAt returns: ' + this.getNodeAt(params.pointer.DOM));-->
-    <!--});-->
-    <!--network.on("dragging", function (params) {-->
-        <!--params.event = "[original event]";-->
-        <!--document.getElementById('eventSpan').innerHTML = '<h2>dragging event:</h2>' + JSON.stringify(params, null, 4);-->
-    <!--});-->
-    <!--network.on("dragEnd", function (params) {-->
-        <!--params.event = "[original event]";-->
-        <!--document.getElementById('eventSpan').innerHTML = '<h2>dragEnd event:</h2>' + JSON.stringify(params, null, 4);-->
-        <!--console.log('dragEnd Event:', params);-->
-        <!--console.log('dragEnd event, getNodeAt returns: ' + this.getNodeAt(params.pointer.DOM));-->
-    <!--});-->
-    <!--network.on("zoom", function (params) {-->
-        <!--document.getElementById('eventSpan').innerHTML = '<h2>zoom event:</h2>' + JSON.stringify(params, null, 4);-->
-    <!--});-->
-    <!--network.on("showPopup", function (params) {-->
-        <!--document.getElementById('eventSpan').innerHTML = '<h2>showPopup event: </h2>' + JSON.stringify(params, null, 4);-->
-    <!--});-->
-    <!--network.on("hidePopup", function () {-->
-        <!--console.log('hidePopup Event');-->
-    <!--});-->
-    <!--network.on("select", function (params) {-->
-        <!--console.log('select Event:', params);-->
-    <!--});-->
-    <!--network.on("selectNode", function (params) {-->
-        <!--console.log('selectNode Event:', params);-->
-    <!--});-->
-    <!--network.on("selectEdge", function (params) {-->
-        <!--console.log('selectEdge Event:', params);-->
-    <!--});-->
-    <!--network.on("deselectNode", function (params) {-->
-        <!--console.log('deselectNode Event:', params);-->
-    <!--});-->
-    <!--network.on("deselectEdge", function (params) {-->
-        <!--console.log('deselectEdge Event:', params);-->
-    <!--});-->
-    <!--network.on("hoverNode", function (params) {-->
-        <!--console.log('hoverNode Event:', params);-->
-    <!--});-->
-    <!--network.on("hoverEdge", function (params) {-->
-        <!--console.log('hoverEdge Event:', params);-->
-    <!--});-->
-    <!--network.on("blurNode", function (params) {-->
-        <!--console.log('blurNode Event:', params);-->
-    <!--});-->
-    <!--network.on("blurEdge", function (params) {-->
-        <!--console.log('blurEdge Event:', params);-->
-    <!--});-->
+    function cancelEdit(callback) {
+      clearPopUp();
+      callback(null);
+      
+    }
 
+        //function to disable keybinds
+    function disable_keybinds() {
+      if (document.getElementById('network-popUp').style.display == 'block') {
+        window.removeEventListener("keydown", function(event) {return keybinds(event);});
+      }
+    }
+
+    function saveData(data,callback) {
+      data.id = document.getElementById('node-id').value;
+      data.label = document.getElementById('node-label').value;
+      data.title = document.getElementById('node-title').value;
+      clearPopUp();
+      callback(data);
+    }
+
+    function keybinds(event) {
+      if (event.defaultPrevented) {
+        return; // Do nothing if the event was already processed
+      }
+      switch (event.key) {
+        case 'Escape': // Escape key
+
+          network.disableEditMode();
+          break;
+        case 'E': // e key
+          network.editNode();
+        case 'e': // e key
+          network.addEdgeMode();
+          break;
+        case 'n': // n key
+          network.addNodeMode();
+          break;
+        case 'Delete': // n key
+          network.deleteSelected();
+          break;
+          // 46 Delete
+        default:
+          // alert('keypress event\ne\n' + 'keycode: ' + event.keyCode + ' key: ' + event.key);
+          return; // Quit when this doesn't handle the key event.
+      }
+      event.preventDefault();
+    }
+
+    //function to enable keybinds
+    function enable_keybinds(){
+      window.addEventListener("keydown", function(event) {return keybinds(event);}, true);
+    }
+
+    
+    function init() {
+      draw();
+
+      
+
+      //function that populates the metadata details.
+      network.on("click", function (params) {
+      params.event = "[original event]";
+      node = nodes.get(params.nodes)[0];
+      edge = edges._data[params.edges[0]];
+      if (node) {
+        // document.getElementById('details').innerHTML = '' + node.title ;
+        document.getElementById('details_id').innerHTML = params.nodes[0] ;
+        simplemde.value('' + node.title );
+      }
+      else if (edge) {
+        // document.getElementById('details').innerHTML = '' + edge.title ;
+        document.getElementById('details_id').innerHTML = params.edges[0] ;
+        simplemde.value('' + edge.title );
+      }
+       else {
+        // document.getElementById('details').innerHTML = '<p>Select a node for more details</p>'
+        document.getElementById('details_id').innerHTML = ''
+        simplemde.value('Select a node for more details')
+      }
+    });
+
+
+
+    }
+
+    function update_children(stack_level, next_nodes){
+      // if first in stack color and move onto next nodes
+      if (stack_level == 1) {
+        selected = network.getSelection().nodes[0];
+        console.log("init on:" + selected);
+        nodes.update({id:selected, color:'#7BE141'});
+        nn = network.getConnectedNodes(selected,"to");
+        update_children(stack_level +1, nn);
+
+      }
+      else {
+        console.log("level:" + stack_level);
+        console.log("iterating through:" + next_nodes);
+        for (n in next_nodes) {
+          selected = next_nodes[n]
+          console.log("next on:" + selected);
+          nodes.update({id:selected, color:'#7BE141'});
+          nn = network.getConnectedNodes(selected,"to");
+          update_children(stack_level +1, nn);
+
+        }
+
+      }
+
+    }
 </script>
+
 <script type=text/javascript>
   $SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
 </script>
 
 <script type=text/javascript>
+
+  // jquery command to send request to server to save node state
   $(function() {
     $('#send').bind('click', function() {
-      $.getJSON($SCRIPT_ROOT + '/_add_numbers', {
-        c: JSON.stringify(nodes.get(), null, 4)
+      $.getJSON($SCRIPT_ROOT + '/_save_nodes', {
+        nodes: JSON.stringify(nodes.get(), null),
+        edges: JSON.stringify(edges.get(), null)
+      }, function(data) {
+        $("#result").text(data.result);
+      });
+      return false; 
+    });
+  });
+
+    // jquery command to send request to server to save node state
+  $(function() {
+    $('#update_details').bind('click', function() {
+      $.getJSON($SCRIPT_ROOT + '/_update_details', {
+        node_id: JSON.stringify(network.getSelection().nodes[0]),
+        details: simplemde.value(),
+        object_type: 'table'
       }, function(data) {
         $("#result").text(data.result);
       });
       return false;
     });
   });
-</script>
-<h1>Click "save" to save nodes to database</h1>
-<button id="send">Save</button>
-<p id="result">
 
-<p>
+</script>
+<body onload="init();">
 </body>
 
 {% endblock %}

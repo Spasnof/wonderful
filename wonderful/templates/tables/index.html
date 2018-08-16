@@ -310,7 +310,7 @@
         node_description = ''
       }
 
-      jQuery.getJSON(strUrl, {
+      return jQuery.getJSON(strUrl, {
         node_id: node_id,
         node_label: node_label,
         node_description: node_description,
@@ -343,6 +343,16 @@
       update_node(data.id, data.label, data.description ,'0');
       callback(data);
     } 
+
+    function get_child_parent_edges(node_id) {
+      var strUrl = $SCRIPT_ROOT + '/_get_child_parent_edges';
+      var connected_node_ids = network.getConnectedNodes(node_id);
+
+      jQuery.getJSON(strUrl, {
+        node_id: node_id,
+        connected_node_ids: connected_node_ids
+      });
+    }
 
     function init() {
       draw();

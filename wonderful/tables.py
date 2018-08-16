@@ -1,5 +1,5 @@
 from flask import (
-    Blueprint, flash, g, redirect, render_template, request, url_for, jsonify, json, app
+    Blueprint, flash, g, redirect, render_template, request, url_for, jsonify, json, app, session
 )
 
 import marshmallow
@@ -12,11 +12,11 @@ from wonderful.db import get_db
 bp = Blueprint('tables', __name__)
 
 
-def get_meta_tables(db):
+def get_meta_tables(db, uid):
     return db.execute(
         'SELECT t.id, object, description, created, owner_id, username'
         ' FROM tables t JOIN user u ON t.owner_id = u.id'
-        ' WHERE t.visible = 1'
+        f' WHERE t.visible = 1 and t.owner_id = {uid}'
         ' ORDER BY created DESC'
     ).fetchall()
 
@@ -31,7 +31,11 @@ def get_edges(db):
 def index():
     """render main page"""
     db = get_db()
-    meta_tables = get_meta_tables(db)
+    user_id = session.get('user_id')
+    if not (user_id):
+        return  render_template('base.html')
+    print(f'user id : {user_id} is logging in.')
+    meta_tables = get_meta_tables(db,user_id)
     meta_edges = get_edges(db)
     return render_template('tables/index.html', tables=meta_tables, edges=meta_edges)
 
@@ -40,9 +44,9 @@ def index():
 def add_node():
     """ method to add new placeholder nodes to the db, need id only for client to work."""
     db = get_db()
-    #FIXME resolve to non hard-coded userid from the client to indicate ownership.
+    user_id = session.get('user_id')
     # new nodes are created invisibly then the /_update_node call will address the visiblity.
-    new_node = (0, 1, 'new', '')
+    new_node = (0, user_id, 'new', '')
     db.execute('INSERT INTO tables(visible, owner_id, object, description ) VALUES (?,?,?,?) ;', new_node)
     max_id = db.execute('SELECT MAX(id) as max_id FROM tables;').fetchall()
     db.commit()
@@ -72,9 +76,9 @@ def add_edge():
     from_id = request.args.get('from_id')
     to_id = request.args.get('to_id')
     edge_description = request.args.get('edge_description')
-    #FIXME resolve to non hard-coded userid from the client to indicate ownership.
+    user_id = session.get('user_id')
     # new edges are always created visibly unless we see a reason otherwise.
-    new_edge = (1, from_id, to_id, edge_description)
+    new_edge = (user_id, from_id, to_id, edge_description)
     db.execute('INSERT INTO edges(visible, from_table_id, to_table_id, description) VALUES (?,?,?,?);', new_edge)
     max_id = db.execute('SELECT MAX(id) FROM edges;').fetchall()
     db.commit()

@@ -203,16 +203,21 @@
         if (data.from == data.to) {
           var r = confirm("Do you want to connect the node to itself?");
           if (r == true) {
-            // FIXME this is considered a syncronous main method which throws warnings. Try and have it not do that.
+            // FIXME [warning] this is considered a syncronous main method which throws warnings. Try and have it not do that.
             generate_edge_id(data.from, data.to);
             callback(data);
             }
           } 
         else {
-          // FIXME this is considered a syncronous main method which throws warnings. Try and have it not do that.
+          // FIXME [warning] this is considered a syncronous main method which throws warnings. Try and have it not do that.
           generate_edge_id(data.from, data.to);
           callback(data);
           }
+        },
+      editEdge: function (data, callback){
+        
+
+        saveEdgeUpdate(data,callback);
         }
       }
     };
@@ -289,6 +294,12 @@
       data.to = edges.get(data.id).to;
       data.title = edges.get(data.id).title;
       update_edge(data.id, data.from, data.to, data.title ,'0');
+      callback(data);
+    } 
+
+    function saveEdgeUpdate(data,callback) {
+      data.title = edges.get(data.id).title;
+      update_edge(data.id, data.from, data.to, data.title ,'1');
       callback(data);
     } 
 
@@ -388,7 +399,7 @@
 </script>
 
 <script type=text/javascript>
-
+    // FIXME TODO this only saves backend state and not frontend state.
     // jquery command to send request to server to save node state
   $(function() {
     $('#update_details').bind('click', function() {

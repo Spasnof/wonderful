@@ -126,7 +126,7 @@
       network.destroy();
       network = null;
     }
-  }
+    }
 
   function draw() {
     destroy();
@@ -139,10 +139,10 @@
     /* create an array with edges from backend */
     edges = new vis.DataSet([
       {% for edge in edges %}
-        {from: {{edge.from_table_id}}, to: '{{ edge.to_table_id}}', title: '{{ edge.description|tojson}}', arrows:'to' },
+        {id: {{edge.id}}, from: {{edge.from_table_id}}, to: '{{ edge.to_table_id}}', title: '{{ edge.description|tojson}}', arrows:'to' },
       {% endfor %}
       ]);
-
+  
   // create a network
   var container = document.getElementById('mynetwork');
   var data = {
@@ -175,12 +175,18 @@
       hover:true 
       },
     manipulation: {
+      deleteNode: function (data, callback) {
+        saveNodeDelete(data, callback);
+        },
+      deleteEdge: function (data, callback) {
+        saveEdgeDelete(data, callback);
+        },
       addNode: function (data, callback) {
         // filling in the popup DOM elements
         document.getElementById('operation').innerHTML = "Add Node";
         document.getElementById('node-label').value = data.label;
         document.getElementById('node-id').value = generate_node_id();
-        document.getElementById('saveButton').onclick = saveDataNew.bind(this, data, callback);
+        document.getElementById('saveButton').onclick = saveEdgeNew.bind(this, data, callback);
         document.getElementById('cancelButton').onclick = clearPopUp.bind();
         document.getElementById('network-popUp').style.display = 'block';
         },
@@ -189,7 +195,7 @@
         document.getElementById('operation').innerHTML = "Edit Node";
         document.getElementById('node-id').value = data.id;
         document.getElementById('node-label').value = data.label;
-        document.getElementById('saveButton').onclick = saveDataUpdate.bind(this, data, callback);
+        document.getElementById('saveButton').onclick = saveNodeUpdate.bind(this, data, callback);
         document.getElementById('cancelButton').onclick = cancelEdit.bind(this,callback);
         document.getElementById('network-popUp').style.display = 'block';
         },
@@ -197,20 +203,25 @@
         if (data.from == data.to) {
           var r = confirm("Do you want to connect the node to itself?");
           if (r == true) {
+            // FIXME this is considered a syncronous main method which throws warnings. Try and have it not do that.
+            generate_edge_id(data.from, data.to);
             callback(data);
             }
           } 
         else {
+          // FIXME this is considered a syncronous main method which throws warnings. Try and have it not do that.
+          generate_edge_id(data.from, data.to);
           callback(data);
           }
         }
       }
     };
+
   network = new vis.Network(container, data, options);
 
   }
 
-   function generate_node_id(){
+  function generate_node_id(){
     var strUrl = $SCRIPT_ROOT + '/_add_node'
     var strReturn = "";
  
@@ -221,24 +232,30 @@
       },
       async:false
     });
+    return strReturn;
+  }
+
+  function generate_edge_id(from_id, to_id){
+    var strUrl = $SCRIPT_ROOT + '/_add_edge'
+    var strReturn = "";
+
+    jQuery.ajax({
+      url: strUrl,
+      data: $.param( {
+        from_id: from_id,
+        to_id: to_id,
+        edge_description: ''
+        } ),
+      success: function(html) {
+        strReturn = html;
+      },
+      async:false
+    });
 
     return strReturn;
-   }
+  }
 
-   function update_node(node_id, node_label, node_description, node_visible){
-    var strUrl = $SCRIPT_ROOT + '/_update_node';
-    if (node_description == undefined)
-    {
-      node_description = ''
-    }
 
-    jQuery.getJSON(strUrl, {
-      node_id: node_id,
-      node_label: node_label,
-      node_description: node_description,
-      node_visible: node_visible
-    });
-   }
 
    function clearPopUp() {
       document.getElementById('saveButton').onclick = null;
@@ -249,17 +266,49 @@
     function cancelEdit(callback) {
       clearPopUp();
       callback(null);
-      
     }
-
-        //function to disable keybinds
-    function disable_keybinds() {
-      if (document.getElementById('network-popUp').style.display == 'block') {
-        window.removeEventListener("keydown", function(event) {return keybinds(event);});
+    function update_edge(edge_id, from_id, to_id, edge_description, edge_visible){
+    var strUrl = $SCRIPT_ROOT + '/_update_edge';
+      if (edge_description == undefined)
+      {
+        edge_description = ''
       }
-    }
 
-    function saveDataNew(data,callback) {
+    jQuery.getJSON(strUrl, {
+      edge_id: edge_id,
+      from_id: from_id,
+      to_id: to_id,
+      edge_description: edge_description,
+      edge_visible: edge_visible
+    });
+   }
+
+    function saveEdgeDelete(data,callback) {
+      data.id = network.getSelection().edges[0];
+      data.from = edges.get(data.id).from;
+      data.to = edges.get(data.id).to;
+      data.title = edges.get(data.id).title;
+      update_edge(data.id, data.from, data.to, data.title ,'0');
+      callback(data);
+    } 
+
+    function update_node(node_id, node_label, node_description, node_visible){
+      var strUrl = $SCRIPT_ROOT + '/_update_node';
+      if (node_description == undefined)
+      {
+        node_description = ''
+      }
+
+      jQuery.getJSON(strUrl, {
+        node_id: node_id,
+        node_label: node_label,
+        node_description: node_description,
+        node_visible: node_visible
+      });
+    }   
+
+    function saveEdgeNew(data,callback) {
+      // TODO combine saveEdgeNew, saveNodeUpdate, and saveNodeDelete as one function.
       data.id = document.getElementById('node-id').value;
       data.label = document.getElementById('node-label').value;
       clearPopUp();
@@ -267,7 +316,7 @@
       callback(data);
     }
 
-    function saveDataUpdate(data,callback) {
+    function saveNodeUpdate(data,callback) {
       data.id = document.getElementById('node-id').value;
       data.label = document.getElementById('node-label').value;
       data.description = simplemde.value();
@@ -276,40 +325,14 @@
       callback(data);
     }
 
-    function keybinds(event) {
-      if (event.defaultPrevented) {
-        return; // Do nothing if the event was already processed
-      }
-      switch (event.key) {
-        case 'Escape': // Escape key
+    function saveNodeDelete(data,callback) {
+      data.id = network.getSelection().nodes[0];
+      data.label = nodes.get(data.id).label;
+      data.description = nodes.get(data.id).description;
+      update_node(data.id, data.label, data.description ,'0');
+      callback(data);
+    } 
 
-          network.disableEditMode();
-          break;
-        case 'E': // e key
-          network.editNode();
-        case 'e': // e key
-          network.addEdgeMode();
-          break;
-        case 'n': // n key
-          network.addNodeMode();
-          break;
-        case 'Delete': // n key
-          network.deleteSelected();
-          break;
-          // 46 Delete
-        default:
-          // alert('keypress event\ne\n' + 'keycode: ' + event.keyCode + ' key: ' + event.key);
-          return; // Quit when this doesn't handle the key event.
-      }
-      event.preventDefault();
-    }
-
-    //function to enable keybinds
-    function enable_keybinds(){
-      window.addEventListener("keydown", function(event) {return keybinds(event);}, true);
-    }
-
-    
     function init() {
       draw();
       //function that populates the metadata details.
@@ -357,6 +380,7 @@
           }
         }
     }
+
 </script>
 
 <script type=text/javascript>

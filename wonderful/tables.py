@@ -22,7 +22,7 @@ def get_meta_tables(db):
 
 def get_edges(db):
     return db.execute(
-        'SELECT e.from_table_id, e.to_table_id, e.description'
+        'SELECT e.id, e.from_table_id, e.to_table_id, e.description'
         ' FROM edges e'
         ' WHERE e.visible = 1'
     ).fetchall()
@@ -36,48 +36,6 @@ def index():
     return render_template('tables/index.html', tables=meta_tables, edges=meta_edges)
 
 
-@bp.route('/_save_nodes', methods=['GET', 'POST'])
-def save_nodes():
-    """Pass node data to db backend
-    TODO clean up these names to be consistent ie object vs table vs node
-    """
-    db = get_db()
-    mtables = get_meta_tables(db)
-    medges = get_edges(db)
-    # build dictionary of db tables and edges
-    table_labels = {}
-    table_edges = {}
-    for t in mtables:
-        table_labels[t['object']] = t['description']
-    for e in medges:
-        table_edges[str(e['from_table_id']) + '-' + str(e['to_table_id'])] = ''
-
-    nodes = request.args.get('nodes')
-    nodes_json = json.loads(nodes)
-    edges = request.args.get('edges')
-    edges_json = json.loads(edges)
-
-
-    # Insert records into db that exist in front end but not in backend.
-    for n in nodes_json:
-        if n['label'] not in table_labels:
-            #TODO get the actual owner to be different
-            new_table_obj = (1, n['label'], n['title'])
-            db.execute('INSERT INTO tables(owner_id, object, description) VALUES (?,?,?);', new_table_obj)
-            db.commit()
-    # TODO BUG if you add a node then create edges to/from it they are not saved.
-
-    for e in edges_json:
-        edgeid = str(e['from']) + '-' + str(e['to'])
-        if edgeid not in table_edges:
-            new_edge_obj = (e['from'], e['to'], 'empty description')
-            db.execute('INSERT INTO edges(from_table_id, to_table_id, description) VALUES (?,?,?);', new_edge_obj)
-            db.commit()
-
-    # TODO get this to actualy yield some helpful results
-    return 'you clicked save'
-
-
 @bp.route('/_add_node', methods=['GET', 'POST'])
 def add_node():
     """ method to add new placeholder nodes to the db, need id only for client to work."""
@@ -89,6 +47,7 @@ def add_node():
     max_id = db.execute('SELECT MAX(id) as max_id FROM tables;').fetchall()
     db.commit()
     return str(max_id[0][0])
+
 
 @bp.route('/_update_node', methods=['GET', 'POST'])
 def update_node():
@@ -105,6 +64,7 @@ def update_node():
     db.commit()
     return 'success'
 
+
 @bp.route('/_add_edge', methods=['GET', 'POST'])
 def add_edge():
     """ method to add edges"""
@@ -116,11 +76,12 @@ def add_edge():
     # new edges are always created visibly unless we see a reason otherwise.
     new_edge = (1, from_id, to_id, edge_description)
     db.execute('INSERT INTO edges(visible, from_table_id, to_table_id, description) VALUES (?,?,?,?);', new_edge)
-    max_id = db.execute('SELECT MAX(id) FROM edges;')
+    max_id = db.execute('SELECT MAX(id) FROM edges;').fetchall()
     db.commit()
-    return max_id
+    return str(max_id[0][0])
 
-@bp.route('/_add_edge', methods=['GET', 'POST'])
+
+@bp.route('/_update_edge', methods=['GET', 'POST'])
 def update_edge():
     """ method to remove or edit edges"""
     db = get_db()
@@ -136,10 +97,8 @@ def update_edge():
 
 
 
-
-
-#TODO have edge/node removal added to the save_nodes() function.
 #TODO have the data dictionary only show services you own
 #TODO have services you don't own displayed on click, only add one layer at a time.
 #TODO add unit tests
 #TODO remove function calls in html button elements.
+#TODO readd keybinds once you understand how they work.

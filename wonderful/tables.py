@@ -110,7 +110,7 @@ def get_child_parent_edges():
     connected_node_ids = request.args.get('connected_node_ids')
     # diff the two edges
     sql = '''
-    SELECT t.id, t.object, t.description
+    SELECT t.id, t.object as label, t.description as title
     FROM tables t
     WHERE t.id in 
     (
@@ -124,19 +124,21 @@ def get_child_parent_edges():
     SELECT e2.to_table_id
     FROm edges e2
     WHERE e2.from_table_id = ?
-    );
+    ) ;
     '''
-    db.row_factory = None
-    all_connected_node_ids = db.execute(sql, (node_id, node_id)).fetchall()
+    cur = db.execute(sql, (node_id, node_id))
+    row_headers = [x[0] for x in cur.description]
+    rv = cur.fetchall()
     db.commit()
-    nodes_json = jsonify(all_connected_node_ids)
-    print(request.args.get('connected_node_ids'))
-    return nodes_json
+    json_data = []
+    for result in rv:
+        if str(result["id"]) not in connected_node_ids:
+            json_data.append(dict(zip(row_headers, result)))
+    return json.dumps(json_data)
 
 
-# TODO have the data dictionary only show services you own
-# TODO have services you don't own displayed on click, only add one layer at a time.
-# TODO have services you don't own displayed, perhaps a search?
+# TODO add some search functionality.
 # TODO add unit tests
-# TODO remove function calls in html button elements.
+# TODO remove function calls in html button elements
+# TODO move the javascript out of the html, figure out how templating will work with that.
 # TODO readd keybinds once you understand how they work.

@@ -9,6 +9,7 @@
 <body>
 <script type="text/javascript" src="{{ url_for('static', filename='jquery-3.3.1.min.js') }}"></script>
 <script type="text/javascript" src="{{ url_for('static', filename='vis.js') }}"></script>
+<!-- <script type="text/javascript" defer=true src="{{ url_for('static', filename='wonderful.js') }}"></script> -->
 <!-- testing out a simple markdown editor. -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.css">
 <script src="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.js"></script>
@@ -85,35 +86,9 @@
     <div id="details_id"></div>
     <textarea id="details">Select a node for more details</textarea>
     <input type="button" value="update_details" id="update_details" />
-    <script>
-      var simplemde = new SimpleMDE({ element: document.getElementById("details") });
-    </script>
   </div>
 
-<script>
-  
-  // document.addEventListener('keypress', (n) => {
-  //   const keyName = event.key;
-  //   if (keyName == "n") {
-  //     
-  //   }
-  // });
 
-  // document.addEventListener('keypress', (e) => {
-  // const keyName = event.keyCode;
-  // alert('keypress event\n\n' + 'key: ' + keyName);
-  // if (keyName == "e") {
-  //   network.addEdgeMode();
-  //   }
-  // });
-
-  // document.addEventListener('keypress', (e) => {
-  // const keyName = event.key;
-  // if (keyName == "esc") {
-  //   network.addEdgeMode();
-  //   }
-  // });
-</script>
 <script type="text/javascript">
   var nodes = null;
   var edges = null;
@@ -348,11 +323,45 @@
       var strUrl = $SCRIPT_ROOT + '/_get_child_parent_edges';
       var connected_node_ids = network.getConnectedNodes(node_id);
 
-      jQuery.getJSON(strUrl, {
+      function encodeQueryData(data) {
+       let ret = [];
+       for (let d in data)
+         ret.push(encodeURIComponent(d) + '=' + encodeURIComponent(data[d]));
+       return ret.join('&');
+      }
+
+
+
+      request = new XMLHttpRequest();
+      request.onreadystatechange = function(){
+        // Process the server response here.
+        // console.log(request.readyState)
+        if (request.readyState === XMLHttpRequest.DONE) {
+          requestParsed = JSON.parse(request.response)
+          for (i in requestParsed) {
+            nodes.add(requestParsed[i]);
+            network.setOptions({physics: { enabled : true }});
+            network.on("stabilized", function (params) {
+              console.log("stabilized!", params);
+              network.setOptions({physics: { enabled : false }});
+            });
+          }
+        } else {
+            // Not ready yet.
+        }
+      };
+
+      var url = strUrl + '?' + encodeQueryData({
         node_id: node_id,
-        connected_node_ids: connected_node_ids
+        connected_node_ids : JSON.stringify(connected_node_ids)
       });
+
+      request.open('GET',url)
+      request.send();
     }
+
+
+
 
     function init() {
       draw();
@@ -365,6 +374,7 @@
             // document.getElementById('details').innerHTML = '' + node.title ;
             document.getElementById('details_id').innerHTML = params.nodes[0] ;
             simplemde.value('' + node.title );
+            get_child_parent_edges(params.nodes[0]);
           }
           else if (edge) {
             // document.getElementById('details').innerHTML = '' + edge.title ;
@@ -402,14 +412,9 @@
         }
     }
 
-</script>
-
-<script type=text/javascript>
   $SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
-</script>
 
-<script type=text/javascript>
-    // FIXME TODO this only saves backend state and not frontend state.
+      // FIXME TODO this only saves backend state and not frontend state.
     // jquery command to send request to server to save node state
   $(function() {
     $('#update_details').bind('click', function() {
@@ -425,7 +430,10 @@
     });
   });
 
+  var simplemde = new SimpleMDE({ element: document.getElementById("details") });
+
 </script>
+
 <body onload="init();">
 </body>
 

@@ -1,9 +1,11 @@
-/* Requires the Docker Pipeline plugin */
-node('docker') {
-    checkout scm
-    stage('test') {
-        bat 'python --version'
+pipeline {
+    agent any
+    stages {
+        stage('Stage 1') {
+            steps {
+                bat 'python --version'
+            }
         }
     }
 }
-
+                
